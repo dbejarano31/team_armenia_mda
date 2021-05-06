@@ -21,6 +21,7 @@ import pyLDAvis.sklearn
 import matplotlib.pyplot as plt 
 
 import seaborn as sns
+sns.set_style('darkgrid')
 
 from plotly.offline import plot 
 import plotly.graph_objects as go 
@@ -31,18 +32,17 @@ import plotly.express as px
 df = pd.read_csv('/Users/danielbejarano/Documents/MSc. Information Management/2nd semester/Modern Data Analytics/consolidated-transcripts')
 df.drop(columns = 'Unnamed: 0', inplace = True)
 df.dropna(axis = 0, how = 'any', inplace = True)
+df['Year'] = [int(i) for i in df['Year']]
 
 st.image('/Users/danielbejarano/MDA/app/UN_General_Assembly_hall.jpeg')
+
 ## main header
-st.write("""
-	# Analysis of UN General Assemblies 1970-2018
+st.title('Analysis of UN General Assemblies 1970-2018')
 
-
+st.markdown(""" 
 	In this application we dive deep into the contents of the UN General Assembly speeches for the past 50 years. 
 	We first take a look at the frequently addressed issues, and then we rely on external data to see whether the topics addressed
 	are also implemented in practice. 
-
-
 	""")
 
 # descriptive section --> including topic modelling here? 
@@ -50,13 +50,27 @@ st.write("""
 st.write("""
 	## Visualizing the speeches
 
-	NOTE: would be nice to make this chart sort of interactive? also to make it such that we can filter by year
+	Here we can add other plots to describe the filings not in terms of content (can't think of any other metrics other
+	than word count, which Khatchatur already did )
 	""")
+
+# setting up sidebar
+
+st.sidebar.header('User Input Features')
+unique_years = sorted(list(df['Year'].unique()), reverse = True)
+unique_countries = list(df['Country'].unique())
+unique_sessions = list(df['Session'].unique())
+selected_years = st.sidebar.slider('Year', 1970, 2018, (1970, 2018))
+selected_country = st.sidebar.multiselect('Country', unique_countries, unique_countries)
+selected_session = st.sidebar.multiselect('Session', unique_sessions, unique_sessions)
+
+filtered_df = df[(df.Country.isin(selected_country)) & (df.Session.isin(selected_session)) & (df.Year.isin(selected_years))]
+
 
 # plotting transcript length histogram
 fig = plt.figure(figsize = (10,6))
 doc_lens = []
-for i in df.Transcript.values:
+for i in filtered_df.Transcript.values:
 	doc_lens.append(len(str(i)))
 plt.hist(doc_lens, bins = 100)
 plt.title('Distribution of transcript lengths')
@@ -67,10 +81,8 @@ st.pyplot(fig)
 
 st.write("""
 	## Visualizing major themes addressed
-
-	Here it would be nice to add some sort of widget to filter by country, session, year, topic, etc.
-
 	""")
+
 
 vectorizer = CountVectorizer(analyzer = 'word',
 	min_df = 3,
@@ -79,7 +91,7 @@ vectorizer = CountVectorizer(analyzer = 'word',
 	token_pattern = '[a-zA-Z0-9]{3,}',
 	max_features = 5000)
 
-data_vectorized = vectorizer.fit_transform(df['Transcript'].values)
+data_vectorized = vectorizer.fit_transform(filtered_df['Transcript'].values)
 lda_model = LatentDirichletAllocation(n_components = 10, ## this is number of topics
 	learning_method = 'online',
 	random_state = 42,
